@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          # No dependencies means no go.sum; key the build cache on go.mod.
+          cache-dependency-path: backend/go.mod
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15
+          working-directory: backend
+      - name: Test with the race detector
+        run: go test -race -coverprofile=coverage.out ./...
+      - name: Require 90% coverage
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ { sub("%", "", $3); print $3 }')
+          echo "### Backend coverage: ${total}%" >> "$GITHUB_STEP_SUMMARY"
+          awk -v total="$total" 'BEGIN { exit !(total >= 90) }'
+      - name: Fuzz the calculator
+        run: go test -run='^$' -fuzz=FuzzCalculate -fuzztime=20s ./internal/calculator
+      - uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          path: backend/coverage.out
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run format:check
+      - name: Test with coverage (fails under 90%)
+        run: npm run coverage
+      - name: Summarize coverage
+        run: |
+          jq -r '.total | "### Frontend coverage\n\n| Statements | Branches | Functions | Lines |\n| --- | --- | --- | --- |\n| \(.statements.pct)% | \(.branches.pct)% | \(.functions.pct)% | \(.lines.pct)% |"' \
+            coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"
+      - run: npm run build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+
+  e2e:
+    name: End-to-end
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: fullstack-calculator:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke-test the image
+        run: |
+          docker run --detach --name calculator --publish 8080:8080 fullstack-calculator:ci
+          for _ in $(seq 1 30); do
+            curl --fail --silent localhost:8080/healthz && break
+            sleep 1
+          done
+          curl --fail --silent --json '{"operands":[6,7]}' localhost:8080/api/v1/multiply | grep '"result":42'
+          curl --fail --silent localhost:8080/ | grep '<title>Calculator</title>'
+      - name: Show the server log
+        if: always()
+        run: docker logs calculator
+
+  openapi:
+    name: OpenAPI spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: npx --yes @redocly/cli@2.71.2 lint docs/openapi.yaml --config docs/redocly.yaml

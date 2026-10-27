@@ -1,0 +1,17 @@
+# Only sources go into the build context.
+.git
+.github
+.claude
+docs
+**/*.md
+**/.DS_Store
+
+**/node_modules
+frontend/dist
+frontend/coverage
+frontend/test-results
+frontend/playwright-report
+
+backend/bin
+backend/coverage.out
+backend/coverage.html
