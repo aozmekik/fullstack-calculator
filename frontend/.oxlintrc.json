@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "jsx-a11y",
+    "vitest",
+    "import"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/only-export-components": ["error", { "allowConstantExport": true }],
+    "typescript/no-floating-promises": "error",
+    "import/no-cycle": "error",
+    "import/no-unassigned-import": [
+      "error",
+      { "allow": ["**/*.css", "@testing-library/jest-dom/vitest"] }
+    ],
+    // The automatic JSX runtime needs no React import.
+    "react/react-in-jsx-scope": "off",
+    // TypeScript already checks return types, including exhaustive switches.
+    "typescript/consistent-return": "off",
+    // A div with role="group" names the keypad without <fieldset>'s form semantics.
+    "jsx-a11y/prefer-tag-over-role": "off"
+  },
+  "ignorePatterns": ["dist", "coverage", "playwright-report", "test-results"]
+}

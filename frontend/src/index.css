@@ -1,0 +1,108 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --color-page: #f3f1f8;
+  --color-page-glow: #e7e0fb;
+  --color-surface: #ffffff;
+  --color-border: #e6e2ef;
+  --color-text: #1d1a24;
+  --color-muted: #625c70;
+  --color-key: #f1eff6;
+  --color-key-hover: #e8e5f0;
+  --color-key-pressed: #dcd8e7;
+  --color-key-function: #e4e0ee;
+  --color-key-function-hover: #d9d4e6;
+  --color-operator: #ece5fd;
+  --color-operator-hover: #e0d5fc;
+  --color-operator-text: #5b21b6;
+  --color-accent: #6d28d9;
+  --color-accent-hover: #5b21b6;
+  --color-on-accent: #ffffff;
+  --color-error: #b42318;
+  --color-focus: #7c3aed;
+
+  --radius-card: 28px;
+  --radius-key: 18px;
+  --shadow-card:
+    0 1px 2px rgb(29 26 36 / 0.04), 0 16px 40px -12px rgb(76 29 149 / 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-page: #0e0c13;
+    --color-page-glow: #21173a;
+    --color-surface: #18151f;
+    --color-border: #2a2533;
+    --color-text: #f4f2f8;
+    --color-muted: #a8a1b6;
+    --color-key: #24202d;
+    --color-key-hover: #2d2838;
+    --color-key-pressed: #353043;
+    --color-key-function: #302a3c;
+    --color-key-function-hover: #3a3348;
+    --color-operator: #2e2346;
+    --color-operator-hover: #3a2c59;
+    --color-operator-text: #c4b5fd;
+    --color-accent: #7c3aed;
+    --color-accent-hover: #6d28d9;
+    --color-on-accent: #ffffff;
+    --color-error: #ff8a80;
+    --color-focus: #a78bfa;
+    --shadow-card:
+      0 1px 2px rgb(0 0 0 / 0.4), 0 20px 48px -16px rgb(0 0 0 / 0.6);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: var(--color-page);
+  background-image: radial-gradient(
+    ellipse at 50% -10%,
+    var(--color-page-glow),
+    transparent 60%
+  );
+  background-repeat: no-repeat;
+  color: var(--color-text);
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
