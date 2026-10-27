@@ -43,7 +43,7 @@ You need Go 1.27+, Node.js 22.22+ (see `.nvmrc`) and `make`. `make lint` also
 needs [golangci-lint](https://golangci-lint.run/) v2.
 
 ```bash
-make setup   # npm ci and the Playwright browser; Go needs no downloads
+make setup   # npm ci and the Playwright browsers; Go needs no downloads
 make dev     # API on :8080 and the app with hot reload on http://localhost:5173
 ```
 
@@ -54,7 +54,7 @@ use `make run` and open http://localhost:8080.
 | Command         | What it does                                                    |
 | --------------- | --------------------------------------------------------------- |
 | `make test`     | Backend tests (with the race detector) and frontend unit tests  |
-| `make e2e`      | Playwright tests against the real server, desktop and mobile    |
+| `make e2e`      | Playwright tests against the real server, in Chromium and WebKit |
 | `make coverage` | HTML coverage reports for both apps                             |
 | `make lint`     | golangci-lint, oxlint (type-aware), TypeScript and Prettier     |
 | `make fuzz`     | Fuzzes the calculator's two properties, 30 seconds each         |
@@ -172,7 +172,7 @@ correlating logs, not for security.
 
 ```mermaid
 flowchart LR
-  subgraph browser [Browser: React + TypeScript]
+  subgraph browser [React app]
     input[Keypad, keyboard, paste] -->|events| reducer[calculatorReducer<br/>pure state machine]
     reducer -->|state.request| hook[useCalculator]
     hook -->|succeeded / failed| reducer
@@ -286,7 +286,7 @@ of instances can run behind a load balancer.
 the API. When it needs a calculation it puts a request in its state, and
 `useCalculator` performs it and reports back with a `succeeded` or `failed`
 event. Every calculator rule is therefore synchronous and deterministic, and
-it is tested without a network or a DOM. Two behaviours follow from this
+it is tested without a network or a DOM. Two behaviors follow from this
 design:
 
 - Keys pressed while a request is in flight are queued and replayed after it
@@ -345,26 +345,27 @@ cd frontend && npx playwright test
   `not_a_real_number` rather than a complex or principal-root answer. `0^0`
   is 1, as in most languages.
 - Results smaller than the smallest float64 become 0 (`10 ^ -400`).
-- The display formats numbers in en-US style (`1,234.5`), matching the `.` key.
-  Values are shown in full below 2⁵³, where every integer is exact; from 10¹⁵
-  up, fractions are rounded to the nearest integer. Larger magnitudes, and
-  magnitudes below 10⁻⁶, use scientific notation.
+- The display formats numbers in en-US style (`1,234.5`), matching the `.` key:
+  - Integers are shown in full below 2⁵³, where every integer is exact.
+  - Fractions keep up to 15 significant digits below 10¹⁵; from there up they
+    are rounded to the nearest integer.
+  - Larger magnitudes, and magnitudes below 10⁻⁶, use scientific notation.
 - There is no authentication or persistence. History is per browser tab.
 
 ## Testing and coverage
 
 | Suite                    | What it covers                                                                                                   | Size                     |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| Go unit and HTTP tests   | Every operation and edge case; the full HTTP contract, byte for byte; middleware; config; the real server started and stopped | 175 cases, race detector |
+| Go unit and HTTP tests   | Every operation and edge case; the full HTTP contract, byte for byte; middleware; config; the real server started and stopped | 176 cases, race detector |
 | Go fuzzing               | Results are finite, never `-0`, stable under normalization and never reordered by it; errors are always documented sentinels | `make fuzz`, 30 s in CI  |
 | Frontend unit and component | Every state-machine rule, formatting, input validation, the API client, the UI through Testing Library       | 185 tests                |
-| End-to-end               | The built app against the real Go server on desktop and mobile Chromium, including an axe scan in both themes    | 16 tests                 |
+| End-to-end               | The built app against the real Go server in Chromium, WebKit, Pixel and iPhone emulation, and Firefox in CI, including an axe scan in both themes | 8 scenarios × 4 browsers, 5 in CI |
 
 | Coverage                     | Statements | Branches | Functions | Lines |
 | ---------------------------- | ---------- | -------- | --------- | ----- |
 | `backend/internal/calculator` | 100%       |          |           |       |
 | `backend/internal/server`     | 100%       |          |           |       |
-| `backend` overall             | 96.4%      |          |           |       |
+| `backend` overall             | 96.5%      |          |           |       |
 | `frontend/src`                | 100%       | 98.9%    | 100%      | 100%  |
 
 Go reports statement coverage only. The uncovered backend lines are `main()`
@@ -380,22 +381,32 @@ Every push runs [CI](.github/workflows/ci.yml):
   coverage gate and a short fuzz run.
 - **Frontend:** `npm audit` of runtime dependencies, oxlint, TypeScript,
   Prettier, tests with a coverage gate, and a production build.
-- **End-to-end:** the Playwright suite, in the official Playwright container
-  so browsers need no install.
+- **End-to-end:** the Playwright suite on five browser setups, Firefox
+  included, in the official Playwright container so browsers need no install.
 - **Docker:** the image is built and smoke-tested with `curl`.
 - **OpenAPI:** the spec is linted.
+
+A Lighthouse 12 audit of the production build, served by the Go binary,
+scores 100 for accessibility, best practices and SEO on both mobile and
+desktop. Performance is 100 on desktop and 97 on mobile (first paint 2.1 s
+on a simulated slow 4G connection).
 
 ## What I would do next
 
 - **Observability:** Prometheus metrics per operation and status, OpenTelemetry
   traces carrying the request ID, and a readiness probe separate from
   liveness.
-- **Edge protection:** rate limiting per client in front of the service.
+- **Edge protection:** rate limiting per client in front of the service, and
+  compressed static assets. The Go file server sends them uncompressed, which
+  is what holds the mobile Lighthouse score at 97; a CDN or a reverse proxy
+  would handle both.
 - **Contract testing from the spec:** for example, Schemathesis generating
   requests from `docs/openapi.yaml`, so the spec and the server cannot drift.
 - **Exact decimal arithmetic** (`math/big`) as an opt-in for financial
   calculations, and expressions with operator precedence.
-- **Releases:** publish signed images with an SBOM to a registry from CI.
+- **Supply chain:** pin GitHub Actions and base images by digest, with
+  Dependabot keeping them current, and publish signed images with an SBOM
+  from CI.
 
 ## AI usage
 
