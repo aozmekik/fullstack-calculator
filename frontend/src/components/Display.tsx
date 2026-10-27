@@ -24,8 +24,9 @@ export function Display({ value, expression, error, busy }: DisplayProps) {
 }
 
 /** Shrinks long numbers so that they fit on one line. */
-function sizeOf(value: string): 'large' | 'medium' | 'small' {
+function sizeOf(value: string): 'large' | 'medium' | 'small' | 'tiny' {
   if (value.length <= 9) return 'large'
-  if (value.length <= 14) return 'medium'
-  return 'small'
+  if (value.length <= 13) return 'medium'
+  if (value.length <= 17) return 'small'
+  return 'tiny'
 }

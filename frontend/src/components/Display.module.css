@@ -1,4 +1,5 @@
 .display {
+  container-type: inline-size;
   position: relative;
   display: grid;
   align-content: end;
@@ -18,9 +19,11 @@
   overflow-wrap: anywhere;
 }
 
+/* Each size is capped by the display's width (cqi), so that the longest
+   number in its band fits on one line even on a narrow phone. */
 .value {
   max-width: 100%;
-  font-size: 3.5rem;
+  font-size: min(3.5rem, 16cqi);
   font-weight: 300;
   line-height: 1.1;
   letter-spacing: -0.02em;
@@ -28,11 +31,15 @@
 }
 
 .value[data-size='medium'] {
-  font-size: 2.5rem;
+  font-size: min(2.5rem, 11cqi);
 }
 
 .value[data-size='small'] {
-  font-size: 1.75rem;
+  font-size: min(2rem, 8.5cqi);
+}
+
+.value[data-size='tiny'] {
+  font-size: min(1.5rem, 6.5cqi);
 }
 
 .error {

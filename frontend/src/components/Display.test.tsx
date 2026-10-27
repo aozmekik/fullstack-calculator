@@ -7,8 +7,11 @@ describe('Display', () => {
     ['1,024', 'large'],
     ['1,234,567', 'large'],
     ['123,456,789', 'medium'],
-    ['12,345,678,901', 'medium'],
-    ['123,456,789,012,345', 'small'],
+    ['1,234,567,890', 'medium'],
+    ['12,345,678,901', 'small'],
+    ['-12,345,678,901.5', 'small'],
+    ['123,456,789,012,345', 'tiny'],
+    ['-9,007,199,254,740,991', 'tiny'],
   ])('sizes %s as %s so that it fits', (value, size) => {
     render(<Display value={value} expression="" error={null} busy={false} />)
 

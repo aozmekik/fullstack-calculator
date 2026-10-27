@@ -14,13 +14,14 @@ const scientificFormat = new Intl.NumberFormat('en-US', {
 
 /**
  * Formats a value for display. Every digit is shown while every digit is
- * exact; beyond the safe-integer range, and for tiny magnitudes, scientific
- * notation is shorter and more honest. Never shows "-0".
+ * exact; beyond the safe-integer range, scientific notation is more honest,
+ * and below 1e-6 (where JavaScript itself switches) it is shorter. Never
+ * shows "-0".
  */
 export function formatNumber(value: number): string {
   if (value === 0) return '0'
   const magnitude = Math.abs(value)
-  if (magnitude > Number.MAX_SAFE_INTEGER || magnitude < 1e-9) {
+  if (magnitude > Number.MAX_SAFE_INTEGER || magnitude < 1e-6) {
     return scientificFormat.format(value)
   }
   return Number.isInteger(value)
