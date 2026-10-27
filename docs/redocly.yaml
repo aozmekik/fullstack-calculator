@@ -1,0 +1,11 @@
+# Lint config for openapi.yaml:
+#   npx @redocly/cli lint docs/openapi.yaml --config docs/redocly.yaml
+extends:
+  - recommended
+rules:
+  # The spec documents a service that runs locally or in a container.
+  no-server-example.com: off
+  # A liveness check has no client errors to document.
+  operation-4xx-response: off
+  # No license has been chosen for this repository yet.
+  info-license: off

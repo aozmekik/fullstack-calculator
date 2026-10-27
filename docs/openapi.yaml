@@ -1,0 +1,270 @@
+openapi: 3.1.0
+info:
+  title: Calculator API
+  version: 1.0.0
+  summary: Arithmetic as a small, stateless REST service.
+  description: |
+    Each operation has its own endpoint and takes its operands as a JSON
+    array. Results are finite and never `-0`: integers are exact, and
+    fractions are rounded to 15 significant digits, so `0.1 + 0.2` is `0.3`.
+
+    Requests must be `application/json` and at most 4 KiB. Decoding is
+    strict: unknown, duplicate or case-variant fields, trailing data and
+    `null` operands are rejected.
+
+    Every error has the same shape, `{"error": {"code", "message"}}`. The
+    `code` is stable and meant for programs; the `message` is for people.
+    Malformed requests are `400`; well-formed requests whose math has no
+    answer, such as division by zero, are `422`.
+servers:
+  - url: http://localhost:8080
+    description: Local server (`make run`, `make dev` or Docker)
+# The API is public and stateless: no authentication.
+security: []
+tags:
+  - name: Calculations
+    description: Arithmetic operations, one endpoint each.
+  - name: Operations
+    description: Endpoints for running the service.
+
+paths:
+  /api/v1/{operation}:
+    post:
+      tags: [Calculations]
+      operationId: calculate
+      summary: Apply an operation
+      description: |
+        | Operation    | Operands            | Result                 |
+        | ------------ | ------------------- | ---------------------- |
+        | `add`        | `[a, b]`            | a + b                  |
+        | `subtract`   | `[a, b]`            | a − b                  |
+        | `multiply`   | `[a, b]`            | a × b                  |
+        | `divide`     | `[a, b]`            | a ÷ b                  |
+        | `power`      | `[base, exponent]`  | base<sup>exponent</sup> |
+        | `sqrt`       | `[x]`               | √x                     |
+        | `percentage` | `[percent, base]`   | percent% of base       |
+
+        Other methods on these paths return `405` with an `Allow: POST`
+        header.
+      parameters:
+        - name: operation
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Operation'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculationRequest'
+            examples:
+              divide:
+                summary: '10 ÷ 4 (POST /api/v1/divide)'
+                value: { operands: [10, 4] }
+              sqrt:
+                summary: '√16 (POST /api/v1/sqrt)'
+                value: { operands: [16] }
+              percentage:
+                summary: '15% of 200 (POST /api/v1/percentage)'
+                value: { operands: [15, 200] }
+      responses:
+        '200':
+          description: The calculation and its result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calculation'
+              example: { operation: divide, operands: [10, 4], result: 2.5 }
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /healthz:
+    get:
+      tags: [Operations]
+      operationId: health
+      summary: Liveness check
+      description: Also answers `HEAD`. Other methods return `405`.
+      responses:
+        '200':
+          description: The service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+              example: { status: ok }
+
+components:
+  schemas:
+    Operation:
+      type: string
+      enum: [add, subtract, multiply, divide, power, sqrt, percentage]
+
+    CalculationRequest:
+      type: object
+      additionalProperties: false
+      required: [operands]
+      properties:
+        operands:
+          description: >-
+            Two operands, or one for `sqrt`. Each must be a JSON number that
+            fits a 64-bit float.
+          type: array
+          minItems: 1
+          maxItems: 2
+          items:
+            type: number
+
+    Calculation:
+      type: object
+      required: [operation, operands, result]
+      properties:
+        operation:
+          $ref: '#/components/schemas/Operation'
+        operands:
+          description: The operands, as received.
+          type: array
+          items:
+            type: number
+        result:
+          description: >-
+            Finite and never -0. Integers are exact; fractions are rounded to
+            15 significant digits.
+          type: number
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - invalid_request
+                - not_found
+                - method_not_allowed
+                - payload_too_large
+                - unsupported_media_type
+                - division_by_zero
+                - not_a_real_number
+                - result_out_of_range
+                - internal_error
+            message:
+              type: string
+
+  responses:
+    InvalidRequest:
+      description: >-
+        The body is not a valid calculation request: malformed JSON, the wrong
+        shape or types, unknown or duplicate fields, trailing data, a null
+        operand, the wrong number of operands, or a number outside the range
+        of a 64-bit float.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            operandCount:
+              value:
+                error:
+                  code: invalid_request
+                  message: 'wrong number of operands: add takes 2, got 3'
+            wrongType:
+              value:
+                error:
+                  code: invalid_request
+                  message: operands[0] must be a number
+            unknownField:
+              value:
+                error:
+                  code: invalid_request
+                  message: unknown field "extra"
+
+    NotFound:
+      description: No such operation or route.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: not_found
+              message: no route for POST /api/v1/modulo
+
+    PayloadTooLarge:
+      description: The body is larger than 4 KiB.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: payload_too_large
+              message: request body must not exceed 4096 bytes
+
+    UnsupportedMediaType:
+      description: The Content-Type is missing or is not application/json.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: unsupported_media_type
+              message: Content-Type must be application/json
+
+    Unprocessable:
+      description: The request is well formed, but the math has no answer.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            divisionByZero:
+              value:
+                error:
+                  code: division_by_zero
+                  message: division by zero
+            notARealNumber:
+              value:
+                error:
+                  code: not_a_real_number
+                  message: >-
+                    result is not a real number: square root of a negative
+                    number
+            outOfRange:
+              value:
+                error:
+                  code: result_out_of_range
+                  message: >-
+                    result is out of range: magnitude exceeds
+                    1.7976931348623157e+308
+
+    InternalError:
+      description: An unexpected failure; the details are only in the server logs.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: internal_error
+              message: internal server error
