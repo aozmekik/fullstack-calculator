@@ -4,8 +4,9 @@ import { ApiError } from '../api/errors'
 import type { Calculation, Operation } from '../api/types'
 
 /**
- * Answers a calculation the way the Go API would (minus its rounding), so
- * that tests read like real use. Throws ApiError where the API returns 422.
+ * Answers a calculation with plain JavaScript arithmetic, so that tests read
+ * like real use. Like the API, it rejects division by zero and square roots
+ * of negatives with an ApiError; the API's other rules are tested in Go.
  */
 export function compute(
   operation: Operation,
@@ -25,7 +26,7 @@ export function compute(
     divide: a / b,
     power: a ** b,
     sqrt: Math.sqrt(a),
-    percentage: (a / 100) * b,
+    percentage: (a * b) / 100,
   }
   return { operation, operands: [...operands], result: results[operation] }
 }

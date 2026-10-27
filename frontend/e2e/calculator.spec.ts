@@ -23,8 +23,12 @@ test('calculates through the real API', async ({ page }) => {
 
 test('rounds away binary floating-point noise', async ({ page }) => {
   await page.keyboard.type('0.1+0.2=')
-
   await expect(display(page)).toHaveText('0.3')
+
+  // Each step is rounded on the server; the display's guard digit keeps the
+  // leftover from showing.
+  await page.keyboard.type('1/3*3=')
+  await expect(display(page)).toHaveText('1')
 })
 
 test('keeps every key when typing faster than the API answers', async ({
@@ -50,8 +54,12 @@ test('lets a keyboard user reuse a result from the history', async ({
   await page.keyboard.type('2+3=9')
   await page.getByRole('button', { name: '2 + 3 = 5' }).focus()
   await page.keyboard.press('Enter')
-
   await expect(display(page)).toHaveText('5')
+
+  // Once the user types again, Enter means "=" rather than that button.
+  await page.keyboard.type('+2')
+  await page.keyboard.press('Enter')
+  await expect(display(page)).toHaveText('7')
 })
 
 test('fits a long result on one line', async ({ page }) => {

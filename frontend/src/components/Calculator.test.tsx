@@ -84,6 +84,27 @@ describe('Calculator', () => {
     expect(screen.queryByText('5 +')).not.toBeInTheDocument()
   })
 
+  it('gives Enter back to = once the user types after pressing a focused button', async () => {
+    const { user, display } = setup()
+
+    await user.keyboard('2+3=')
+    screen.getByRole('button', { name: '2 + 3 = 5' }).focus()
+    await user.keyboard('{Enter}') // recalls 5
+    await user.keyboard('+2{Enter}')
+
+    expect(display()).toHaveTextContent('7')
+  })
+
+  it('gives Enter back to = once the user clicks, even after Tab', async () => {
+    const { user, click, display } = setup()
+
+    await user.tab() // focuses AC
+    await click('2', 'Add', '3')
+    await user.keyboard('{Enter}')
+
+    expect(display()).toHaveTextContent('5')
+  })
+
   it('leaves other keys alone, so Tab still moves focus', async () => {
     const { user, display } = setup()
 

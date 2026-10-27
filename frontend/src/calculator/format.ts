@@ -1,11 +1,17 @@
 import type { Calculation } from '../api/types'
 import { OPERATOR_SYMBOLS } from './operators'
 
+// Results arrive with up to 15 significant digits. The display shows one
+// fewer, a guard digit like a hardware calculator's, so that rounding left
+// over from earlier steps stays hidden: 1 ÷ 3 × 3 is 0.999999999999999 at 15
+// digits, and reads 1.
+const DISPLAY_DIGITS = 14
+
 const integerFormat = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
 })
 const fractionFormat = new Intl.NumberFormat('en-US', {
-  maximumSignificantDigits: 15,
+  maximumSignificantDigits: DISPLAY_DIGITS,
 })
 const scientificFormat = new Intl.NumberFormat('en-US', {
   notation: 'scientific',
@@ -24,9 +30,9 @@ export function formatNumber(value: number): string {
   if (magnitude > Number.MAX_SAFE_INTEGER || magnitude < 1e-6) {
     return scientificFormat.format(value)
   }
-  // From 1e15 on, 15 significant digits would cut integer digits, so that
+  // From 10^14 on, DISPLAY_DIGITS would cut integer digits, so that
   // 2^50 + 0.5 would look smaller than 2^50. Round to the integer instead.
-  return Number.isInteger(value) || magnitude >= 1e15
+  return Number.isInteger(value) || magnitude >= 10 ** DISPLAY_DIGITS
     ? integerFormat.format(value)
     : fractionFormat.format(value)
 }

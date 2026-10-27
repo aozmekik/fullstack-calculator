@@ -3,7 +3,10 @@
 
 export type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
 
-/** The most digits a number may have: float64 represents 15 exactly. */
+/**
+ * The most digits a number may have: any decimal of up to 15 significant
+ * digits survives the round trip through float64 unchanged.
+ */
 export const MAX_DIGITS = 15
 
 export function appendDigit(text: string, digit: Digit): string {

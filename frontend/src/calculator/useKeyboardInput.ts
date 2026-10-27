@@ -19,6 +19,9 @@ export function useKeyboardInput(onEvent: (event: CalculatorEvent) => void) {
       const key = keyForShortcut(event.key)
       if (!key) return
       event.preventDefault() // e.g. "/" would open Firefox's quick find
+      // Typing moves on from a button pressed with Tab and Enter, so that the
+      // next Enter means "=" instead of pressing that button again.
+      if (event.target instanceof HTMLButtonElement) event.target.blur()
       onEvent(key.event)
     }
 
