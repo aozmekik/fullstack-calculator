@@ -36,7 +36,10 @@ export default defineConfig({
       : []),
   ],
   webServer: {
-    command: 'go build -o bin/server ./cmd/server && ./bin/server',
+    // A test binary needs no VCS stamp, and git may refuse to run for a
+    // checkout owned by another user, as in the CI container.
+    command:
+      'go build -buildvcs=false -o bin/server ./cmd/server && ./bin/server',
     cwd: '../backend',
     url: `${baseURL}/healthz`,
     env: {
