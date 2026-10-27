@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -29,8 +30,10 @@ func loadConfig(getenv func(string) string) (config, error) {
 		cfg.port = port
 	}
 	if cfg.staticDir != "" {
-		if info, err := os.Stat(cfg.staticDir); err != nil || !info.IsDir() {
-			errs = append(errs, fmt.Errorf("STATIC_DIR must be a directory, got %q", cfg.staticDir))
+		// Requiring index.html catches a wrong path at startup, and means "/"
+		// never falls back to a directory listing.
+		if info, err := os.Stat(filepath.Join(cfg.staticDir, "index.html")); err != nil || info.IsDir() {
+			errs = append(errs, fmt.Errorf("STATIC_DIR must be a directory with an index.html, got %q", cfg.staticDir))
 		}
 	}
 	if v := getenv("LOG_FORMAT"); v != "" {

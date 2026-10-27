@@ -20,7 +20,7 @@ type calculationResponse struct {
 
 func (s *server) handleCalculate(op calculator.Operation) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		resp, err := calculate(w, r, op)
+		resp, err := calculate(r, op)
 		if err != nil {
 			s.writeError(w, r, err)
 			return
@@ -29,8 +29,8 @@ func (s *server) handleCalculate(op calculator.Operation) http.HandlerFunc {
 	}
 }
 
-func calculate(w http.ResponseWriter, r *http.Request, op calculator.Operation) (*calculationResponse, error) {
-	req, err := decodeJSON[calculationRequest](w, r)
+func calculate(r *http.Request, op calculator.Operation) (*calculationResponse, error) {
+	req, err := decodeJSON[calculationRequest](r)
 	if err != nil {
 		return nil, err
 	}

@@ -22,6 +22,17 @@ func chain(h http.Handler, mws ...middleware) http.Handler {
 	return h
 }
 
+// limitBodies caps every request body at maxBodyBytes. It must run first, on
+// the server's own ResponseWriter: when the cap is hit, MaxBytesReader asks
+// that writer to close the connection, so that the server does not go on
+// reading the rest of the body. A wrapping writer would hide that request.
+func limitBodies(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+		next.ServeHTTP(w, r)
+	})
+}
+
 const requestIDHeader = "X-Request-ID"
 
 // validRequestID bounds what an inbound request ID may contain, so that a

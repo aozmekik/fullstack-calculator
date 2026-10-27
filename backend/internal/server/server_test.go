@@ -83,6 +83,10 @@ func TestAPI(t *testing.T) {
 			wantStatus: http.StatusBadRequest, wantBody: `{"error":{"code":"invalid_request","message":"malformed JSON at byte 14: invalid character '1' after array element (expecting ',' or ']')"}}`},
 		{name: "number beyond float64", path: "/api/v1/add", body: `{"operands":[1e400,1]}`,
 			wantStatus: http.StatusBadRequest, wantBody: `{"error":{"code":"invalid_request","message":"operands[0] is outside the range of a 64-bit float"}}`},
+		{name: "a number where the array goes", path: "/api/v1/add", body: `{"operands":5}`,
+			wantStatus: http.StatusBadRequest, wantBody: `{"error":{"code":"invalid_request","message":"operands must be an array"}}`},
+		{name: "body is a number", path: "/api/v1/add", body: `5`,
+			wantStatus: http.StatusBadRequest, wantBody: `{"error":{"code":"invalid_request","message":"request body must be a JSON object"}}`},
 		{name: "unknown field", path: "/api/v1/add", body: `{"operands":[1,2],"extra":true}`,
 			wantStatus: http.StatusBadRequest, wantBody: `{"error":{"code":"invalid_request","message":"unknown field \"extra\""}}`},
 		{name: "field names are case-sensitive", path: "/api/v1/add", body: `{"OPERANDS":[1,2]}`,
@@ -155,6 +159,32 @@ func TestAPI(t *testing.T) {
 				t.Errorf("Allow = %q, want %q", got, tt.wantAllow)
 			}
 		})
+	}
+}
+
+// An oversized body must also close the connection; otherwise the server keeps
+// reading the rest of the body to reuse the connection.
+func TestOversizedBodyClosesTheConnection(t *testing.T) {
+	srv := httptest.NewServer(server.New(server.Options{}))
+	defer srv.Close()
+
+	body := strings.NewReader(padTo(`{"operands":[1,2]}`, 5000))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/add", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Errorf("status = %d, want 413", resp.StatusCode)
+	}
+	if !resp.Close {
+		t.Error("the connection stays open after a 413")
 	}
 }
 

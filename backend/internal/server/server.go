@@ -48,7 +48,7 @@ func New(opts Options) http.Handler {
 		mux.HandleFunc("/", notFound)
 	}
 
-	return chain(mux, requestID, logRequests(logger), recoverPanics(logger), securityHeaders)
+	return chain(mux, limitBodies, requestID, logRequests(logger), recoverPanics(logger), securityHeaders)
 }
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {

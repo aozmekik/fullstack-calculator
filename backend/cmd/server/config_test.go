@@ -14,6 +14,9 @@ func (e env) get(key string) string { return e[key] }
 
 func TestLoadConfig(t *testing.T) {
 	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	tests := []struct {
 		name string
 		env  env
@@ -38,6 +41,7 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestLoadConfigErrors(t *testing.T) {
+	emptyDir := t.TempDir()
 	file := filepath.Join(t.TempDir(), "index.html")
 	if err := os.WriteFile(file, nil, 0o600); err != nil {
 		t.Fatal(err)
@@ -50,8 +54,9 @@ func TestLoadConfigErrors(t *testing.T) {
 		{"port is not a number", env{"PORT": "http"}, []string{`PORT must be an integer from 0 to 65535, got "http"`}},
 		{"port is negative", env{"PORT": "-1"}, []string{`got "-1"`}},
 		{"port is too large", env{"PORT": "65536"}, []string{`got "65536"`}},
-		{"static dir is missing", env{"STATIC_DIR": "/does/not/exist"}, []string{`STATIC_DIR must be a directory, got "/does/not/exist"`}},
-		{"static dir is a file", env{"STATIC_DIR": file}, []string{"STATIC_DIR must be a directory"}},
+		{"static dir is missing", env{"STATIC_DIR": "/does/not/exist"}, []string{`STATIC_DIR must be a directory with an index.html, got "/does/not/exist"`}},
+		{"static dir is a file", env{"STATIC_DIR": file}, []string{"STATIC_DIR must be a directory with an index.html"}},
+		{"static dir has no index.html", env{"STATIC_DIR": emptyDir}, []string{"STATIC_DIR must be a directory with an index.html"}},
 		{"unknown log format", env{"LOG_FORMAT": "xml"}, []string{`LOG_FORMAT must be json or text, got "xml"`}},
 		{"every problem is reported", env{"PORT": "x", "LOG_FORMAT": "xml"}, []string{"PORT", "LOG_FORMAT"}},
 	}

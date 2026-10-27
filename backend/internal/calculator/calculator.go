@@ -47,6 +47,11 @@ var (
 // precision.
 const significantDigits = 15
 
+// exactMagnitude is where rounding to 15 significant digits would start to
+// drop integer digits (2^50 + 0.5 would come out below 2^50). Values this
+// large have at most a few bits of fraction left, so they are returned as is.
+const exactMagnitude = 1e15
+
 // spec describes an operation: how many operands it takes and how to apply it.
 type spec struct {
 	arity int
@@ -70,9 +75,9 @@ func Operations() []Operation {
 	return slices.Sorted(maps.Keys(registry))
 }
 
-// Calculate applies op to operands. Integer results are exact; fractional
-// results are rounded to 15 significant digits. The result is always finite
-// and never negative zero.
+// Calculate applies op to operands. Fractional results below 1e15 are rounded
+// to 15 significant digits; everything else, including every integer, is
+// returned as computed. The result is always finite and never negative zero.
 func Calculate(op Operation, operands ...float64) (float64, error) {
 	s, ok := registry[op]
 	if !ok {
@@ -129,9 +134,13 @@ func sqrt(x float64) (float64, error) {
 	return math.Sqrt(x), nil
 }
 
-// percentage returns p percent of base. Dividing first keeps large operands
-// from overflowing; normalize removes the rounding noise that introduces.
+// percentage returns p percent of base. Multiplying first is exact whenever
+// the product is (7% of 1e17 is 7e15, where 0.07 × 1e17 is 7000000000000001);
+// dividing first is the fallback for products that would overflow.
 func percentage(p, base float64) (float64, error) {
+	if product := p * base; !math.IsInf(product, 0) {
+		return product / 100, nil
+	}
 	return p / 100 * base, nil
 }
 
@@ -144,10 +153,10 @@ func normalize(x float64) (float64, error) {
 		return 0, fmt.Errorf("%w: magnitude exceeds %g", ErrOverflow, math.MaxFloat64)
 	case x == 0:
 		return 0, nil // also turns -0 into 0
-	case x == math.Trunc(x):
-		return x, nil // integers are exact in float64; rounding could only lose digits
+	case x == math.Trunc(x), math.Abs(x) >= exactMagnitude:
+		return x, nil // rounding could only drop digits that are real
 	}
-	// Cannot fail: every non-integer float64 is smaller than 2^52 in magnitude.
+	// Cannot fail: x is a fraction smaller than 1e15 in magnitude.
 	rounded, _ := strconv.ParseFloat(strconv.FormatFloat(x, 'g', significantDigits, 64), 64)
 	return rounded, nil
 }

@@ -37,7 +37,7 @@ func TestDecodeJSONUnreadableBody(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/", iotest.ErrReader(errors.New("connection reset")))
 	req.Header.Set("Content-Type", "application/json")
 
-	_, err := decodeJSON[calculationRequest](httptest.NewRecorder(), req)
+	_, err := decodeJSON[calculationRequest](req)
 
 	apiErr := toAPIError(err)
 	if apiErr.status != http.StatusBadRequest || err.Error() != "could not read request body" {

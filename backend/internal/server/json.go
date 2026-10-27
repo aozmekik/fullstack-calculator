@@ -24,16 +24,17 @@ var (
 )
 
 // decodeJSON decodes a request body holding exactly one JSON object into a T.
+// The body is already capped by the limitBodies middleware.
 //
 // It uses encoding/json/v2, which, unlike v1, matches member names
 // case-sensitively, rejects duplicate names and trailing data, and reports
 // typed errors that point at the offending value.
-func decodeJSON[T any](w http.ResponseWriter, r *http.Request) (*T, error) {
+func decodeJSON[T any](r *http.Request) (*T, error) {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mediaType != "application/json" {
 		return nil, errUnsupportedMediaType
 	}
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			return nil, errPayloadTooLarge
@@ -62,8 +63,7 @@ func describeJSONError(err error) *apiError {
 		switch {
 		case errors.Is(serr.Err, json.ErrUnknownName):
 			return invalidRequest("unknown field %q", field)
-		case serr.JSONKind == '0':
-			// A syntactically valid number that does not fit the Go type.
+		case errors.Is(serr.Err, strconv.ErrRange):
 			return invalidRequest("%s is outside the range of a 64-bit float", field)
 		case serr.GoType != nil:
 			return invalidRequest("%s must be %s", field, describeType(serr.GoType))

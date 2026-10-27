@@ -22,6 +22,7 @@ func TestCalculate(t *testing.T) {
 		{"add negatives", calculator.Add, []float64{-2.5, -0.5}, -3},
 		{"add hides binary rounding noise", calculator.Add, []float64{0.1, 0.2}, 0.3},
 		{"add keeps integers exact", calculator.Add, []float64{999_999_999_999_999, 2}, 1_000_000_000_000_001},
+		{"add keeps every digit of a large fraction", calculator.Add, []float64{1 << 50, 0.5}, 1_125_899_906_842_624.5},
 		{"add at the float64 limit", calculator.Add, []float64{math.MaxFloat64, 0}, math.MaxFloat64},
 		{"subtract", calculator.Subtract, []float64{10, 4}, 6},
 		{"subtract to zero", calculator.Subtract, []float64{0.3, 0.3}, 0},
@@ -44,6 +45,7 @@ func TestCalculate(t *testing.T) {
 		{"sqrt of negative zero", calculator.Sqrt, []float64{negativeZero}, 0},
 		{"percentage", calculator.Percentage, []float64{15, 200}, 30},
 		{"percentage with fractional result", calculator.Percentage, []float64{7, 3}, 0.21},
+		{"percentage of a large base is exact", calculator.Percentage, []float64{7, 1e17}, 7e15},
 		{"percentage of a huge base does not overflow", calculator.Percentage, []float64{50, math.MaxFloat64}, math.MaxFloat64 / 2},
 	}
 	for _, tt := range tests {
