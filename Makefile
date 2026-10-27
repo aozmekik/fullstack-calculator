@@ -58,8 +58,9 @@ fmt: ## Format both apps
 	cd $(FRONTEND) && npm run format
 
 .PHONY: fuzz
-fuzz: ## Fuzz the calculator for 30 seconds
-	cd $(BACKEND) && go test -run='^$$' -fuzz=FuzzCalculate -fuzztime=30s ./internal/calculator
+fuzz: ## Fuzz the calculator's two properties for 30 seconds each
+	cd $(BACKEND) && go test -run='^$$' -fuzz='^FuzzCalculate$$' -fuzztime=30s ./internal/calculator
+	cd $(BACKEND) && go test -run='^$$' -fuzz='^FuzzNormalize$$' -fuzztime=30s ./internal/calculator
 
 .PHONY: e2e
 e2e: ## Run the Playwright suite against the real server

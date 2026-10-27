@@ -16,6 +16,7 @@ jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: backend
@@ -30,6 +31,8 @@ jobs:
         with:
           version: v2.15
           working-directory: backend
+      - name: Check for known vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       - name: Test with the race detector
         run: go test -race -coverprofile=coverage.out ./...
       - name: Require 90% coverage
@@ -38,7 +41,9 @@ jobs:
           echo "### Backend coverage: ${total}%" >> "$GITHUB_STEP_SUMMARY"
           awk -v total="$total" 'BEGIN { exit !(total >= 90) }'
       - name: Fuzz the calculator
-        run: go test -run='^$' -fuzz=FuzzCalculate -fuzztime=20s ./internal/calculator
+        run: |
+          go test -run='^$' -fuzz='^FuzzCalculate$' -fuzztime=15s ./internal/calculator
+          go test -run='^$' -fuzz='^FuzzNormalize$' -fuzztime=15s ./internal/calculator
       - uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
@@ -47,6 +52,7 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: frontend
@@ -58,6 +64,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Check runtime dependencies for known vulnerabilities
+        run: npm audit --omit=dev
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run format:check
@@ -77,6 +85,11 @@ jobs:
     name: End-to-end
     needs: [backend, frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Browsers and their system libraries come preinstalled, which saves
+    # minutes of apt installs. Keep the tag in step with @playwright/test.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         working-directory: frontend
@@ -92,7 +105,6 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
       - run: npm run e2e
       - uses: actions/upload-artifact@v7
         if: failure()
@@ -103,6 +115,7 @@ jobs:
   docker:
     name: Docker image
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -129,6 +142,7 @@ jobs:
   openapi:
     name: OpenAPI spec
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
