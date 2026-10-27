@@ -23,8 +23,9 @@ export function App({ client }: AppProps) {
           Keyboard: <kbd>0</kbd>–<kbd>9</kbd> <kbd>.</kbd> <kbd>+</kbd>{' '}
           <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> <kbd>^</kbd> <kbd>%</kbd> ·{' '}
           <kbd>r</kbd> √ · <kbd>n</kbd> ± · <kbd>Enter</kbd> = ·{' '}
-          <kbd>Backspace</kbd> ⌫ · <kbd>Esc</kbd> AC · or paste a number
+          <kbd>Backspace</kbd> ⌫ · <kbd>Esc</kbd> AC
         </p>
+        <p>You can also paste a number.</p>
       </footer>
     </div>
   )

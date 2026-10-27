@@ -1,10 +1,13 @@
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { keyForShortcut } from './keys'
 import type { CalculatorEvent } from './reducer'
 
 /** Drives the calculator from the physical keyboard and the clipboard. */
 export function useKeyboardInput(onEvent: (event: CalculatorEvent) => void) {
-  useEffect(() => {
+  // A layout effect attaches the listeners before the first paint, so keys
+  // typed as soon as the calculator appears are never lost. (A passive
+  // effect runs a task later, and browsers may handle input before it.)
+  useLayoutEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       // Leave browser and OS shortcuts such as Cmd+R or Ctrl+V alone.
       if (event.ctrlKey || event.metaKey || event.altKey) return

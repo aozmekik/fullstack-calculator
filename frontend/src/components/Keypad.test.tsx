@@ -42,4 +42,17 @@ describe('Keypad', () => {
       'aria-keyshortcuts',
     )
   })
+
+  // WCAG 2.5.3: speech input users say the text they see, so a text key's
+  // name must contain its label; the longer meaning goes in the description.
+  it.each([
+    ['AC', 'All clear'],
+    ['xʸ', 'Power'],
+  ])('names the %s key by its label and explains it', (name, hint) => {
+    render(<Keypad onPress={() => {}} />)
+
+    expect(screen.getByRole('button', { name })).toHaveAccessibleDescription(
+      hint,
+    )
+  })
 })

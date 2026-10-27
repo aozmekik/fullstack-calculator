@@ -17,6 +17,7 @@ export function Keypad({ onPress }: KeypadProps) {
           data-variant={key.variant}
           data-span={key.span}
           aria-label={key.name === key.label ? undefined : key.name}
+          title={key.hint}
           aria-keyshortcuts={ariaShortcuts(key.shortcuts)}
           onClick={() => onPress(key.event)}
         >

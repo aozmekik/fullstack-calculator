@@ -72,7 +72,7 @@ describe('Calculator', () => {
     await user.tab()
 
     expect(display()).toHaveTextContent('0')
-    expect(screen.getByRole('button', { name: 'All clear' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'AC' })).toHaveFocus()
   })
 
   it('leaves Ctrl, Cmd and Alt shortcuts to the browser', async () => {
@@ -131,7 +131,7 @@ describe('Calculator', () => {
     const { user, click, display } = setup(client)
 
     await user.keyboard('8*8=')
-    await click('All clear')
+    await click('AC')
     await act(async () => release())
 
     expect(display()).toHaveTextContent('0')

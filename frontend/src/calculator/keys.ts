@@ -4,8 +4,13 @@ import type { CalculatorEvent } from './reducer'
 export interface KeySpec {
   /** Text on the key. */
   label: string
-  /** Accessible name, for keys whose label is a symbol. */
+  /**
+   * Accessible name. Symbol keys get a word ("Divide" for ÷); text keys keep
+   * their label, so that speech input users can say what they see (WCAG 2.5.3).
+   */
   name: string
+  /** What a text key means, shown as a tooltip and read after its name. */
+  hint?: string
   event: CalculatorEvent
   variant: 'digit' | 'function' | 'operator' | 'equals'
   /** `KeyboardEvent.key` values that press this key. */
@@ -31,12 +36,12 @@ function digit(value: Digit, span?: 'wide'): KeySpec {
  */
 // prettier-ignore
 export const KEYPAD: readonly KeySpec[] = [
-  { label: 'AC', name: 'All clear', event: { type: 'clear' }, variant: 'function', shortcuts: ['Escape', 'Delete'] },
+  { label: 'AC', name: 'AC', hint: 'All clear', event: { type: 'clear' }, variant: 'function', shortcuts: ['Escape', 'Delete'] },
   { label: '⌫', name: 'Backspace', event: { type: 'backspace' }, variant: 'function', shortcuts: ['Backspace'] },
   { label: '%', name: 'Percent', event: { type: 'percent' }, variant: 'function', shortcuts: ['%'] },
   { label: '÷', name: 'Divide', event: { type: 'operator', operator: 'divide' }, variant: 'operator', shortcuts: ['/'] },
 
-  { label: 'xʸ', name: 'Power', event: { type: 'operator', operator: 'power' }, variant: 'function', shortcuts: ['^'] },
+  { label: 'xʸ', name: 'xʸ', hint: 'Power', event: { type: 'operator', operator: 'power' }, variant: 'function', shortcuts: ['^'] },
   { label: '√', name: 'Square root', event: { type: 'sqrt' }, variant: 'function', shortcuts: ['r'] },
   { label: '±', name: 'Toggle sign', event: { type: 'toggleSign' }, variant: 'function', shortcuts: ['n'] },
   { label: '×', name: 'Multiply', event: { type: 'operator', operator: 'multiply' }, variant: 'operator', shortcuts: ['*', 'x'] },
