@@ -99,7 +99,7 @@ export function calculatorReducer(
     case 'succeeded':
       return state.request?.id === event.id
         ? succeed(state, state.request, event.calculation)
-        : state // a stale response, e.g. for a request AC cancelled
+        : state // a stale response, e.g. for a request AC canceled
     case 'failed':
       // Keep everything as it was before the request, so the user can fix the
       // input or retry. Keys typed meanwhile assumed success, so drop them.

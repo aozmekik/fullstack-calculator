@@ -70,7 +70,7 @@ test('fits a long result on one line', async ({ page }) => {
 })
 
 test('has no detectable accessibility violations', async ({ page }) => {
-  // Without transitions, colours are final when axe measures contrast.
+  // Without transitions, colors are final when axe measures contrast.
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.keyboard.type('12+7=')
   await expect(display(page)).toHaveText('19')

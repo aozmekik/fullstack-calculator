@@ -47,7 +47,7 @@ export function createCalculatorClient({
         })
         text = await response.text()
       } catch (error) {
-        if (signal?.aborted) throw error // cancelled by the caller: not a failure
+        if (signal?.aborted) throw error // canceled by the caller: not a failure
         throw new NetworkError(timeout.aborted ? 'timeout' : 'unreachable', {
           cause: error,
         })

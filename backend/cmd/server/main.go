@@ -35,7 +35,7 @@ func main() {
 	}
 }
 
-// run starts the service and blocks until ctx is cancelled or serving fails.
+// run starts the service and blocks until ctx is canceled or serving fails.
 func run(ctx context.Context, getenv func(string) string, stdout io.Writer) error {
 	cfg, err := loadConfig(getenv)
 	if err != nil {
@@ -78,7 +78,7 @@ func newHTTPServer(handler http.Handler, logger *slog.Logger) *http.Server {
 	}
 }
 
-// serve runs srv on ln until ctx is cancelled, then shuts down gracefully: it
+// serve runs srv on ln until ctx is canceled, then shuts down gracefully: it
 // stops accepting connections and lets in-flight requests finish.
 func serve(ctx context.Context, srv *http.Server, ln net.Listener) error {
 	errc := make(chan error, 1)

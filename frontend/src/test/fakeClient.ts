@@ -41,7 +41,7 @@ export function fakeClient() {
 
 /**
  * A client that holds every answer until `release` is called, and rejects
- * with the abort reason when a request is cancelled, like fetch does.
+ * with the abort reason when a request is canceled, like fetch does.
  */
 export function heldClient() {
   const held: Array<() => void> = []
