@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "e2e": "npm run build && playwright test",
-    "screenshots": "npm run build && playwright test --project=screenshots"
+    "screenshots": "npm run build && SCREENSHOTS=1 playwright test --project=screenshots"
   },
   "dependencies": {
     "react": "^19.3.1",
