@@ -5,8 +5,9 @@ info:
   summary: Arithmetic as a small, stateless REST service.
   description: |
     Each operation has its own endpoint and takes its operands as a JSON
-    array. Results are finite and never `-0`: integers are exact, and
-    fractions are rounded to 15 significant digits, so `0.1 + 0.2` is `0.3`.
+    array. Results are finite and never `-0`. Fractions below 10^15 are
+    rounded to 15 significant digits, so `0.1 + 0.2` is `0.3`; integers and
+    larger values are returned as computed.
 
     Requests must be `application/json` and at most 4 KiB. Decoding is
     strict: unknown, duplicate or case-variant fields, trailing data and
@@ -143,8 +144,9 @@ components:
             type: number
         result:
           description: >-
-            Finite and never -0. Integers are exact; fractions are rounded to
-            15 significant digits.
+            Finite and never -0. Fractions below 10^15 are rounded to 15
+            significant digits; integers and larger values are returned as
+            computed.
           type: number
 
     Error:

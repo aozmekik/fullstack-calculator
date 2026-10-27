@@ -57,12 +57,15 @@ use `make run` and open http://localhost:8080.
 | `make e2e`      | Playwright tests against the real server, desktop and mobile    |
 | `make coverage` | HTML coverage reports for both apps                             |
 | `make lint`     | golangci-lint, oxlint (type-aware), TypeScript and Prettier     |
-| `make fuzz`     | Fuzzes the calculator for 30 seconds                            |
+| `make fuzz`     | Fuzzes the calculator's two properties, 30 seconds each         |
 | `make`          | Lists every target                                              |
 
-The server reads three environment variables: `PORT` (default `8080`),
-`STATIC_DIR` (a directory of built frontend files to serve) and `LOG_FORMAT`
-(`json`, the default, or `text`).
+The server reads three environment variables:
+
+- `PORT`, `8080` by default.
+- `STATIC_DIR`, the built frontend to serve. It must contain an
+  `index.html`, so a wrong path fails at startup.
+- `LOG_FORMAT`, `json` (the default) or `text`.
 
 ## Using the calculator
 
@@ -76,11 +79,14 @@ The server reads three environment variables: `PORT` (default `8080`),
   by 100 (`200 × 15% =` is 30).
 - A failed calculation keeps your input. After `5 ÷ 0`, the message appears
   under the display and the `5 ÷` is still pending, so you can type another
-  divisor. After a network error, press `=` to retry.
-- Keys typed while an answer is on its way are queued and replayed, so fast
-  typing never drops a key.
+  divisor. After a network error, press the same key again to retry.
+- Keys typed while an answer is on its way are queued and replayed once it
+  arrives, so fast typing never drops a key. If the answer is an error, the
+  queued keys are discarded, because they were typed assuming success.
 - The history panel keeps the last 20 calculations. Select one to reuse its
   result.
+- `Enter` means `=`. The exception is a button you moved to with `Tab`:
+  then `Enter` presses that button, as everywhere else.
 
 <p align="center"><img alt="The calculator on a phone" src="docs/images/calculator-mobile.png" width="300"></p>
 
@@ -98,7 +104,7 @@ operands as a JSON array. The full contract is in
 | `POST /api/v1/divide`      | `{"operands":[a,b]}` | a ÷ b                      |
 | `POST /api/v1/power`       | `{"operands":[a,b]}` | a to the power b           |
 | `POST /api/v1/sqrt`        | `{"operands":[x]}`   | √x                         |
-| `POST /api/v1/percentage`  | `{"operands":[p,b]}` | p percent of b: p ÷ 100 × b |
+| `POST /api/v1/percentage`  | `{"operands":[p,b]}` | p percent of b: p × b ÷ 100 |
 | `GET /healthz`             | –                    | `{"status":"ok"}`          |
 
 Requests must send `Content-Type: application/json`, which `curl --json` does
@@ -120,8 +126,10 @@ $ curl --json '{"operands":[0.1,0.2]}' localhost:8080/api/v1/add
 
 ### Errors
 
-Every error, including unknown routes and wrong methods, has the same shape.
-The `code` is stable and meant for programs; the `message` is for people.
+Every API error has the same shape, including unknown routes under `/api/`
+and wrong methods. The `code` is stable and meant for programs; the `message`
+is for people. Paths outside the API belong to the built frontend, and its
+file server answers them with plain HTTP errors.
 
 ```console
 $ curl -i --json '{"operands":[1,0]}' localhost:8080/api/v1/divide
@@ -156,8 +164,9 @@ $ curl --json '{"operands":[1,2],"extra":true}' localhost:8080/api/v1/add
 | 500    | `internal_error`         | An unexpected failure; the details only go to the logs                                                                                   |
 
 Every response carries an `X-Request-ID`. An incoming one is reused if it is
-safe; otherwise a random one is generated. The same ID appears in the
-structured access log.
+up to 64 characters of letters, digits, `.`, `_` or `-`; otherwise a random
+one is generated. The same ID appears in the structured access log. It is for
+correlating logs, not for security.
 
 ## Architecture
 
@@ -221,24 +230,33 @@ binary operations, and the domain validates the count. Operands decode into
 Calculations are safe and idempotent, so `GET` would also have been
 defensible. `POST` keeps one typed JSON body and one validation path.
 
-**float64 with two rules about results.** √ and fractional powers need floating
-point, so the API uses float64, and normalizes each result:
+**float64, rounded only where rounding removes noise.** √ and fractional
+powers need floating point, so the API uses float64, and normalizes each
+result:
 
-- Integers are returned exactly. Rounding them would corrupt values like
-  `2^50 = 1125899906842624`, which still fit exactly.
-- Fractions are rounded to 15 significant digits, the most float64 can carry
-  through every decimal round trip. That removes binary noise:
+- Fractions below 10¹⁵ are rounded to 15 significant digits, the most float64
+  can carry through every decimal round trip. That removes binary noise:
   `0.1 + 0.2` is `0.3`.
+- Everything else is returned as computed: every integer, and every value from
+  10¹⁵ up. There, 15 significant digits would drop real digits (`2^50 + 0.5`
+  would come out below `2^50`).
+- `percentage` multiplies before dividing, which is exact whenever the product
+  is: 7% of 10¹⁷ is exactly 7 × 10¹⁵.
 
-Results are never NaN, Infinity or `-0`. A fuzz test checks those properties
-and that normalizing a result twice changes nothing. Money would be different:
-there I would use integer minor units or a decimal type, never float64.
+Results are never NaN, Infinity or `-0`. Two fuzz tests check these rules:
+
+- every result is finite and never `-0`;
+- normalizing a result twice changes nothing;
+- normalizing never reorders two values.
+
+Money would be different: there I would use integer minor units or a decimal
+type, never float64.
 
 **400 versus 422.** A request the server cannot read (malformed, the wrong
 shape, the wrong number of operands) is the client's mistake: 400. A
 well-formed request whose math has no answer (division by zero, √−1, an
-overflow) is 422. Every error, including 404, 405, 413, 415 and panics, uses
-the same JSON envelope with a stable `code`. The frontend chooses its own
+overflow) is 422. Every API error, including 404, 405, 413, 415 and panics,
+uses the same JSON envelope with a stable `code`. The frontend chooses its own
 wording from the code instead of showing server text.
 
 **Strict on input.** The server rejects:
@@ -251,8 +269,9 @@ wording from the code instead of showing server text.
 - `null` operands;
 - numbers beyond float64.
 
-`http.Server` sets header, read, write and idle timeouts, and `SIGTERM` lets
-in-flight requests finish before the process exits.
+An oversized body also closes the connection, so the server never reads the
+rest of it. `http.Server` sets header, read, write and idle timeouts, and
+`SIGTERM` lets in-flight requests finish before the process exits.
 
 **One origin, no CORS.** In production the Go binary serves the built frontend
 next to the API. In development the Vite proxy plays the same role. There is
@@ -271,9 +290,11 @@ it is tested without a network or a DOM. Two behaviours follow from this
 design:
 
 - Keys pressed while a request is in flight are queued and replayed after it
-  succeeds.
-- A failed request leaves the state exactly as it was, plus an error, so
-  nothing typed is lost.
+  succeeds. If it fails they are dropped, because they were typed assuming
+  success.
+- A failed request leaves the state exactly as it was, plus an error.
+  Everything typed before it is kept, and pressing the same key again sends
+  the same request.
 
 The API client is passed in as a prop. Component tests give it a fake, and
 the client's own tests give it a fake `fetch`, so the tests need no
@@ -289,8 +310,10 @@ entered, as on a basic calculator, rather than by operator precedence.
 map, so the two cannot drift apart. Symbol keys get word names (`÷` is
 "Divide"). Text keys keep their visible text as their name (WCAG 2.5.3), with
 the meaning as a description: `AC` is described as "All clear". The display is
-a live region, and errors use `role="alert"`. The end-to-end suite runs axe
-against WCAG 2.2 AA in both light and dark themes.
+a live region, and errors use `role="alert"`. Mouse clicks do not move focus,
+so `Enter` keeps meaning `=`, while `Enter` on a button reached with `Tab`
+presses it. The end-to-end suite runs axe against WCAG 2.2 AA in both light
+and dark themes.
 
 **Tooling follows the current Vite template.** Vite 8 now scaffolds React
 projects with oxlint and TypeScript 7's native compiler. typescript-eslint
@@ -302,8 +325,16 @@ browser.
 **A small, unprivileged image.** The multi-stage build compiles the frontend in
 Node and a static (`CGO_ENABLED=0`) binary in Go. The final image is distroless
 `static-debian13:nonroot`, about 10 MB, with no shell, no package manager and
-no root user. CI builds the image and smoke-tests it, and the end-to-end suite
-passes against it.
+no root user. CI builds the image and smoke-tests it with `curl`.
+
+The end-to-end suite can also run against the image. Start the container on
+port 8090, then run Playwright, which reuses a server that is already
+listening there:
+
+```bash
+docker run --rm -p 8090:8080 fullstack-calculator
+cd frontend && npx playwright test
+```
 
 ## Assumptions
 
@@ -315,25 +346,26 @@ passes against it.
   is 1, as in most languages.
 - Results smaller than the smallest float64 become 0 (`10 ^ -400`).
 - The display formats numbers in en-US style (`1,234.5`), matching the `.` key.
-  Integers are shown in full below 2⁵³, where every integer is exact; larger
-  magnitudes, and magnitudes below 10⁻⁶, use scientific notation.
+  Values are shown in full below 2⁵³, where every integer is exact; from 10¹⁵
+  up, fractions are rounded to the nearest integer. Larger magnitudes, and
+  magnitudes below 10⁻⁶, use scientific notation.
 - There is no authentication or persistence. History is per browser tab.
 
 ## Testing and coverage
 
 | Suite                    | What it covers                                                                                                   | Size                     |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| Go unit and HTTP tests   | Every operation and edge case; the full HTTP contract, byte for byte; middleware; config; the real server started and stopped | 161 cases, race detector |
-| Go fuzzing               | Results are finite, never `-0`, stable under normalization; errors are always documented sentinels               | `make fuzz`, 20 s in CI  |
-| Frontend unit and component | Every state-machine rule, formatting, input validation, the API client, the UI through Testing Library       | 179 tests                |
-| End-to-end               | The built app against the real Go server on desktop and mobile Chromium, including an axe scan in both themes    | 14 tests                 |
+| Go unit and HTTP tests   | Every operation and edge case; the full HTTP contract, byte for byte; middleware; config; the real server started and stopped | 175 cases, race detector |
+| Go fuzzing               | Results are finite, never `-0`, stable under normalization and never reordered by it; errors are always documented sentinels | `make fuzz`, 30 s in CI  |
+| Frontend unit and component | Every state-machine rule, formatting, input validation, the API client, the UI through Testing Library       | 185 tests                |
+| End-to-end               | The built app against the real Go server on desktop and mobile Chromium, including an axe scan in both themes    | 16 tests                 |
 
 | Coverage                     | Statements | Branches | Functions | Lines |
 | ---------------------------- | ---------- | -------- | --------- | ----- |
 | `backend/internal/calculator` | 100%       |          |           |       |
 | `backend/internal/server`     | 100%       |          |           |       |
 | `backend` overall             | 96.4%      |          |           |       |
-| `frontend/src`                | 100%       | 98.8%    | 100%      | 100%  |
+| `frontend/src`                | 100%       | 98.9%    | 100%      | 100%  |
 
 Go reports statement coverage only. The uncovered backend lines are `main()`
 itself and two branches that need the OS to fail a `listen` or a shutdown.
@@ -344,11 +376,12 @@ artifacts and adds a summary to each run.
 
 Every push runs [CI](.github/workflows/ci.yml):
 
-- **Backend:** golangci-lint, tests with the race detector, a coverage gate and
-  a short fuzz run.
-- **Frontend:** oxlint, TypeScript, Prettier, tests with a coverage gate, and a
-  production build.
-- **End-to-end:** the Playwright suite.
+- **Backend:** golangci-lint, govulncheck, tests with the race detector, a
+  coverage gate and a short fuzz run.
+- **Frontend:** `npm audit` of runtime dependencies, oxlint, TypeScript,
+  Prettier, tests with a coverage gate, and a production build.
+- **End-to-end:** the Playwright suite, in the official Playwright container
+  so browsers need no install.
 - **Docker:** the image is built and smoke-tested with `curl`.
 - **OpenAPI:** the spec is linted.
 
