@@ -40,6 +40,8 @@ jobs:
           total=$(go tool cover -func=coverage.out | awk '/^total:/ { sub("%", "", $3); print $3 }')
           echo "### Backend coverage: ${total}%" >> "$GITHUB_STEP_SUMMARY"
           awk -v total="$total" 'BEGIN { exit !(total >= 90) }'
+      - name: Render the coverage report
+        run: go tool cover -html=coverage.out -o coverage.html
       - name: Fuzz the calculator
         run: |
           go test -run='^$' -fuzz='^FuzzCalculate$' -fuzztime=15s ./internal/calculator
@@ -47,7 +49,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
-          path: backend/coverage.out
+          path: |
+            backend/coverage.out
+            backend/coverage.html
 
   frontend:
     name: Frontend
@@ -109,6 +113,10 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run e2e
+        env:
+          # Firefox refuses to start as root when $HOME belongs to another
+          # user, as the runner's does inside this container.
+          HOME: /root
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

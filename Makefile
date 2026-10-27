@@ -19,11 +19,11 @@ dev: ## Run the API on :8080 and the Vite dev server on :5173, with hot reload
 	@$(MAKE) -j2 dev-backend dev-frontend
 
 .PHONY: dev-backend
-dev-backend:
+dev-backend: ## Run only the API on :8080
 	cd $(BACKEND) && LOG_FORMAT=text go run ./cmd/server
 
 .PHONY: dev-frontend
-dev-frontend:
+dev-frontend: ## Run only the Vite dev server on :5173 (it proxies /api to :8080)
 	cd $(FRONTEND) && npm run dev
 
 .PHONY: build
@@ -58,7 +58,7 @@ fmt: ## Format both apps
 	cd $(FRONTEND) && npm run format
 
 .PHONY: fuzz
-fuzz: ## Fuzz the calculator's two properties for 30 seconds each
+fuzz: ## Run both calculator fuzz targets for 30 seconds each
 	cd $(BACKEND) && go test -run='^$$' -fuzz='^FuzzCalculate$$' -fuzztime=30s ./internal/calculator
 	cd $(BACKEND) && go test -run='^$$' -fuzz='^FuzzNormalize$$' -fuzztime=30s ./internal/calculator
 

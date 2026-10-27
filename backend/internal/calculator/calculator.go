@@ -134,9 +134,10 @@ func sqrt(x float64) (float64, error) {
 	return math.Sqrt(x), nil
 }
 
-// percentage returns p percent of base. Multiplying first is exact whenever
-// the product is (7% of 1e17 is 7e15, where 0.07 × 1e17 is 7000000000000001);
-// dividing first is the fallback for products that would overflow.
+// percentage returns p percent of base. Multiplying first rounds once, in the
+// division, where dividing first rounds twice: 7% of 1e17 comes out as exactly
+// 7e15 rather than 7000000000000001. Dividing first remains the fallback for
+// products that would overflow.
 func percentage(p, base float64) (float64, error) {
 	if product := p * base; !math.IsInf(product, 0) {
 		return product / 100, nil
