@@ -97,7 +97,9 @@ func TestAPI(t *testing.T) {
 			wantStatus: http.StatusBadRequest, wantBody: `{"error":{"code":"invalid_request","message":"malformed JSON at byte 19: invalid character '{' after top-level value"}}`},
 		{name: "too few operands", path: "/api/v1/add", body: `{"operands":[1]}`,
 			wantStatus: http.StatusBadRequest, wantBody: `{"error":{"code":"invalid_request","message":"wrong number of operands: add takes 2, got 1"}}`},
-		{name: "too many operands", path: "/api/v1/sqrt", body: `{"operands":[1,2]}`,
+		{name: "too many operands", path: "/api/v1/add", body: `{"operands":[1,2,3]}`,
+			wantStatus: http.StatusBadRequest, wantBody: `{"error":{"code":"invalid_request","message":"wrong number of operands: add takes 2, got 3"}}`},
+		{name: "too many operands for sqrt", path: "/api/v1/sqrt", body: `{"operands":[1,2]}`,
 			wantStatus: http.StatusBadRequest, wantBody: `{"error":{"code":"invalid_request","message":"wrong number of operands: sqrt takes 1, got 2"}}`},
 
 		// 404, 405: routing errors win over body and header checks.
