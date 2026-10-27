@@ -95,6 +95,9 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v7
+      # The container runs as root but the checkout belongs to the runner
+      # user, so git (which go build calls for VCS stamping) refuses the repo.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: actions/setup-go@v7
         with:
           go-version-file: backend/go.mod
