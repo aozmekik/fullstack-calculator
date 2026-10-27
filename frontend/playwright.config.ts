@@ -6,6 +6,17 @@ const port = 8090
 const baseURL = `http://127.0.0.1:${port}`
 const inCI = Boolean(process.env.CI)
 
+// The three browser engines, plus a phone of each mobile platform.
+const browsers = {
+  chromium: devices['Desktop Chrome'],
+  webkit: devices['Desktop Safari'],
+  'mobile-chrome': devices['Pixel 7'],
+  'mobile-safari': devices['iPhone 15'],
+  // Playwright's Firefox build does not start on macOS 27 ("Could not find
+  // profile folder"), so it runs in CI, on Linux, where it is preinstalled.
+  ...(inCI ? { firefox: devices['Desktop Firefox'] } : {}),
+}
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -14,16 +25,11 @@ export default defineConfig({
   reporter: inCI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL, trace: 'on-first-retry' },
   projects: [
-    {
-      name: 'desktop',
-      use: { ...devices['Desktop Chrome'] },
+    ...Object.entries(browsers).map(([name, device]) => ({
+      name,
+      use: device,
       testIgnore: /screenshots/,
-    },
-    {
-      name: 'mobile',
-      use: { ...devices['Pixel 7'] },
-      testIgnore: /screenshots/,
-    },
+    })),
     // Regenerates the README images; run with `npm run screenshots`.
     ...(process.env.SCREENSHOTS
       ? [{ name: 'screenshots', testMatch: /screenshots\.spec\.ts/ }]

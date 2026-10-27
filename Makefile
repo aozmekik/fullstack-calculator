@@ -11,8 +11,8 @@ help: ## List the available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z0-9-]+:.*## / {printf "  \033[36m%-13s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: setup
-setup: ## Install dependencies and the Playwright browser
-	cd $(FRONTEND) && npm ci && npx playwright install chromium
+setup: ## Install dependencies and the Playwright browsers
+	cd $(FRONTEND) && npm ci && npx playwright install chromium webkit
 
 .PHONY: dev
 dev: ## Run the API on :8080 and the Vite dev server on :5173, with hot reload
