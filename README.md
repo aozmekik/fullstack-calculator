@@ -39,7 +39,7 @@ on a distroless base.
 
 ### Locally
 
-You need Go 1.27+, Node.js 22.22+ (see `.nvmrc`) and `make`. `make lint` also
+You need Go 1.27+, Node.js 22.22.2+ (see `.nvmrc`) and `make`. `make lint` also
 needs [golangci-lint](https://golangci-lint.run/) v2.
 
 ```bash
@@ -51,13 +51,20 @@ In development, Vite proxies `/api` to the Go service, so the browser only ever
 talks to one origin. To run the production build the way the Docker image does,
 use `make run` and open http://localhost:8080.
 
+Without `make`, run each side in its own terminal:
+
+```bash
+cd backend && go run ./cmd/server              # API on :8080
+cd frontend && npm ci && npm run dev          # app on http://localhost:5173
+```
+
 | Command         | What it does                                                    |
 | --------------- | --------------------------------------------------------------- |
 | `make test`     | Backend tests (with the race detector) and frontend unit tests  |
 | `make e2e`      | Playwright tests against the real server, in Chromium and WebKit |
 | `make coverage` | HTML coverage reports for both apps                             |
 | `make lint`     | golangci-lint, oxlint (type-aware), TypeScript and Prettier     |
-| `make fuzz`     | Fuzzes the calculator's two properties, 30 seconds each         |
+| `make fuzz`     | Runs both calculator fuzz targets, 30 seconds each              |
 | `make`          | Lists every target                                              |
 
 The server reads three environment variables:
@@ -86,7 +93,8 @@ The server reads three environment variables:
 - The history panel keeps the last 20 calculations. Select one to reuse its
   result.
 - `Enter` means `=`. The exception is a button you moved to with `Tab`:
-  then `Enter` presses that button, as everywhere else.
+  then `Enter` presses that button, as everywhere else. Typing or clicking
+  afterwards gives `Enter` back to `=`.
 
 <p align="center"><img alt="The calculator on a phone" src="docs/images/calculator-mobile.png" width="300"></p>
 
@@ -240,8 +248,13 @@ result:
 - Everything else is returned as computed: every integer, and every value from
   10¹⁵ up. There, 15 significant digits would drop real digits (`2^50 + 0.5`
   would come out below `2^50`).
-- `percentage` multiplies before dividing, which is exact whenever the product
-  is: 7% of 10¹⁷ is exactly 7 × 10¹⁵.
+- `percentage` multiplies before dividing, so it rounds once instead of
+  twice: 7% of 10¹⁷ is exactly 7 × 10¹⁵.
+
+Rounding each step can leave a trace in chained calculations:
+`1 ÷ 3 × 3` is `0.999999999999999` at 15 digits. The display therefore shows
+one digit fewer than the API returns, a guard digit as on a hardware
+calculator, and reads 1.
 
 Results are never NaN, Infinity or `-0`. Two fuzz tests check these rules:
 
@@ -312,7 +325,7 @@ map, so the two cannot drift apart. Symbol keys get word names (`÷` is
 the meaning as a description: `AC` is described as "All clear". The display is
 a live region, and errors use `role="alert"`. Mouse clicks do not move focus,
 so `Enter` keeps meaning `=`, while `Enter` on a button reached with `Tab`
-presses it. The end-to-end suite runs axe against WCAG 2.2 AA in both light
+presses it; typing or clicking afterwards gives `Enter` back to `=`. The end-to-end suite runs axe against WCAG 2.2 AA in both light
 and dark themes.
 
 **Tooling follows the current Vite template.** Vite 8 now scaffolds React
@@ -338,7 +351,8 @@ cd frontend && npx playwright test
 
 ## Assumptions
 
-- Numbers are typed with at most 15 digits, which float64 represents exactly.
+- Numbers are typed with at most 15 digits: any decimal that short survives
+  the round trip through float64 unchanged.
 - `percentage` means "p percent of b". On the keypad, `%` follows phone
   calculators, as described above.
 - A negative base needs an integer exponent: `(-8)^(1/3)` is
@@ -347,8 +361,8 @@ cd frontend && npx playwright test
 - Results smaller than the smallest float64 become 0 (`10 ^ -400`).
 - The display formats numbers in en-US style (`1,234.5`), matching the `.` key:
   - Integers are shown in full below 2⁵³, where every integer is exact.
-  - Fractions keep up to 15 significant digits below 10¹⁵; from there up they
-    are rounded to the nearest integer.
+  - Fractions show 14 significant digits below 10¹⁴ (one guard digit under the
+    API's 15) and are rounded to the nearest integer from there up.
   - Larger magnitudes, and magnitudes below 10⁻⁶, use scientific notation.
 - There is no authentication or persistence. History is per browser tab.
 
@@ -357,8 +371,8 @@ cd frontend && npx playwright test
 | Suite                    | What it covers                                                                                                   | Size                     |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------ |
 | Go unit and HTTP tests   | Every operation and edge case; the full HTTP contract, byte for byte; middleware; config; the real server started and stopped | 176 cases, race detector |
-| Go fuzzing               | Results are finite, never `-0`, stable under normalization and never reordered by it; errors are always documented sentinels | `make fuzz`, 30 s in CI  |
-| Frontend unit and component | Every state-machine rule, formatting, input validation, the API client, the UI through Testing Library       | 185 tests                |
+| Go fuzzing               | Results are finite, never `-0`, stable under normalization and never reordered by it; errors are always documented sentinels | `make fuzz`; 15 s per target in CI |
+| Frontend unit and component | Every state-machine rule, formatting, input validation, the API client, the UI through Testing Library       | 191 tests                |
 | End-to-end               | The built app against the real Go server in Chromium, WebKit, Pixel and iPhone emulation, and Firefox in CI, including an axe scan in both themes | 8 scenarios × 4 browsers, 5 in CI |
 
 | Coverage                     | Statements | Branches | Functions | Lines |
@@ -366,16 +380,17 @@ cd frontend && npx playwright test
 | `backend/internal/calculator` | 100%       |          |           |       |
 | `backend/internal/server`     | 100%       |          |           |       |
 | `backend` overall             | 96.5%      |          |           |       |
-| `frontend/src`                | 100%       | 98.9%    | 100%      | 100%  |
+| `frontend/src`                | 100%       | 98.3%    | 100%      | 100%  |
 
 Go reports statement coverage only. The uncovered backend lines are `main()`
-itself and two branches that need the OS to fail a `listen` or a shutdown.
+itself and three error paths that need the operating system to fail:
+listening, serving and shutting down.
 
 `make coverage` writes `backend/coverage.html` and `frontend/coverage/index.html`.
-CI fails if either side drops below 90%. It also publishes both reports as
-artifacts and adds a summary to each run.
+CI fails if either side drops below 90%. It also publishes both HTML reports
+as artifacts and adds a summary to each run.
 
-Every push runs [CI](.github/workflows/ci.yml):
+Every push to `main` and every pull request runs [CI](.github/workflows/ci.yml):
 
 - **Backend:** golangci-lint, govulncheck, tests with the race detector, a
   coverage gate and a short fuzz run.
@@ -389,7 +404,9 @@ Every push runs [CI](.github/workflows/ci.yml):
 A Lighthouse 12 audit of the production build, served by the Go binary,
 scores 100 for accessibility, best practices and SEO on both mobile and
 desktop. Performance is 100 on desktop and 97 on mobile (first paint 2.1 s
-on a simulated slow 4G connection).
+on a simulated slow 4G connection). To reproduce it, start `make run`, then
+run `npx lighthouse@12 http://localhost:8080 --view`; add `--preset=desktop`
+for the desktop scores.
 
 ## What I would do next
 

@@ -25,8 +25,8 @@ security: []
 tags:
   - name: Calculations
     description: Arithmetic operations, one endpoint each.
-  - name: Operations
-    description: Endpoints for running the service.
+  - name: Health
+    description: Liveness of the service, for load balancers and orchestrators.
 
 paths:
   /api/v1/{operation}:
@@ -92,7 +92,7 @@ paths:
 
   /healthz:
     get:
-      tags: [Operations]
+      tags: [Health]
       operationId: health
       summary: Liveness check
       description: Also answers `HEAD`. Other methods return `405`.
@@ -138,7 +138,7 @@ components:
         operation:
           $ref: '#/components/schemas/Operation'
         operands:
-          description: The operands, as received.
+          description: The operands, as parsed into 64-bit floats.
           type: array
           items:
             type: number
