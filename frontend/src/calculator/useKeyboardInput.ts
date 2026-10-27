@@ -11,11 +11,14 @@ export function useKeyboardInput(onEvent: (event: CalculatorEvent) => void) {
     function handleKeyDown(event: KeyboardEvent) {
       // Leave browser and OS shortcuts such as Cmd+R or Ctrl+V alone.
       if (event.ctrlKey || event.metaKey || event.altKey) return
+      // Enter presses a button the user focused with Tab, as anywhere else.
+      // (Clicks do not focus buttons here; see keepFocus.)
+      if (event.key === 'Enter' && event.target instanceof HTMLButtonElement) {
+        return
+      }
       const key = keyForShortcut(event.key)
       if (!key) return
-      // Also stops Enter from clicking whichever key button has focus,
-      // which would apply that key a second time.
-      event.preventDefault()
+      event.preventDefault() // e.g. "/" would open Firefox's quick find
       onEvent(key.event)
     }
 

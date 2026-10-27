@@ -2,6 +2,7 @@ import { useId } from 'react'
 import { describeCalculation, formatNumber } from '../calculator/format'
 import type { HistoryEntry } from '../calculator/reducer'
 import styles from './History.module.css'
+import { keepFocus } from './keepFocus'
 
 interface HistoryProps {
   entries: HistoryEntry[]
@@ -22,6 +23,7 @@ export function History({ entries, onRecall, onClear }: HistoryProps) {
           type="button"
           className={styles.clear}
           disabled={entries.length === 0}
+          onMouseDown={keepFocus}
           onClick={onClear}
         >
           Clear
@@ -38,6 +40,7 @@ export function History({ entries, onRecall, onClear }: HistoryProps) {
               <button
                 type="button"
                 className={styles.item}
+                onMouseDown={keepFocus}
                 onClick={() => onRecall(calculation.result)}
               >
                 <span className={styles.itemExpression}>

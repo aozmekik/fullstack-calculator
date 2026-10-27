@@ -281,12 +281,27 @@ describe('talking to the API', () => {
     })
   })
 
-  it('retries with = after a network failure', () => {
-    const failed = fail(press(initialState, '6*7='), 'Offline')
+  // A failure leaves the state as it was, so pressing the same key again sends
+  // the same request.
+  it.each([
+    ['6*7=', '=', 'multiply', [6, 7]],
+    ['9+16r', 'r', 'sqrt', [16]],
+    ['2+3*', '*', 'add', [2, 3]],
+  ])('retries %s by pressing %s again', (keys, again, operation, operands) => {
+    const failed = fail(press(initialState, keys), 'Offline')
 
-    expect(screenOf(run('=', failed))).toEqual({
-      value: '42',
-      expression: '6 × 7 =',
+    expect(press(failed, again).request).toMatchObject({
+      operation,
+      operands,
+    })
+  })
+
+  it('finishes the calculation once the retry succeeds', () => {
+    const failed = fail(press(initialState, '9+16r'), 'Offline')
+
+    expect(screenOf(run(['r', '='], failed))).toEqual({
+      value: '13',
+      expression: '9 + 4 =',
       error: null,
     })
   })

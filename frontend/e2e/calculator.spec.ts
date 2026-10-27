@@ -44,6 +44,16 @@ test('explains division by zero and keeps the input', async ({ page }) => {
   await expect(page.getByRole('alert')).toBeEmpty()
 })
 
+test('lets a keyboard user reuse a result from the history', async ({
+  page,
+}) => {
+  await page.keyboard.type('2+3=9')
+  await page.getByRole('button', { name: '2 + 3 = 5' }).focus()
+  await page.keyboard.press('Enter')
+
+  await expect(display(page)).toHaveText('5')
+})
+
 test('fits a long result on one line', async ({ page }) => {
   await page.keyboard.type('2^50=')
   await expect(display(page)).toHaveText('1,125,899,906,842,624')

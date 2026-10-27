@@ -24,7 +24,9 @@ export function formatNumber(value: number): string {
   if (magnitude > Number.MAX_SAFE_INTEGER || magnitude < 1e-6) {
     return scientificFormat.format(value)
   }
-  return Number.isInteger(value)
+  // From 1e15 on, 15 significant digits would cut integer digits, so that
+  // 2^50 + 0.5 would look smaller than 2^50. Round to the integer instead.
+  return Number.isInteger(value) || magnitude >= 1e15
     ? integerFormat.format(value)
     : fractionFormat.format(value)
 }

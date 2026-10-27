@@ -54,15 +54,34 @@ describe('Calculator', () => {
     expect(display()).toHaveTextContent('1,024')
   })
 
-  it('applies Enter once when a key button has focus', async () => {
+  it('treats Enter as = after clicking keys, without repeating the last one', async () => {
     const client = fakeClient()
     const { user, click, display } = setup(client)
 
-    await click('2', 'Add', '3') // the "3" button keeps focus
+    await click('2', 'Add', '3') // a click does not move focus to "3"
     await user.keyboard('{Enter}')
 
     expect(display()).toHaveTextContent('5')
-    expect(client.calculate).toHaveBeenCalledTimes(1)
+    expect(client.calculate).toHaveBeenCalledExactlyOnceWith(
+      'add',
+      [2, 3],
+      expect.anything(),
+    )
+  })
+
+  it('lets Enter press the button a keyboard user focused', async () => {
+    const { user, display } = setup()
+
+    await user.keyboard('2+3=9')
+    screen.getByRole('button', { name: '2 + 3 = 5' }).focus()
+    await user.keyboard('{Enter}')
+    expect(display()).toHaveTextContent('5')
+
+    await user.keyboard('+1')
+    screen.getByRole('button', { name: 'AC' }).focus()
+    await user.keyboard('{Enter}')
+    expect(display()).toHaveTextContent('0')
+    expect(screen.queryByText('5 +')).not.toBeInTheDocument()
   })
 
   it('leaves other keys alone, so Tab still moves focus', async () => {

@@ -1,5 +1,6 @@
 import { KEYPAD } from '../calculator/keys'
 import type { CalculatorEvent } from '../calculator/reducer'
+import { keepFocus } from './keepFocus'
 import styles from './Keypad.module.css'
 
 interface KeypadProps {
@@ -19,6 +20,7 @@ export function Keypad({ onPress }: KeypadProps) {
           aria-label={key.name === key.label ? undefined : key.name}
           title={key.hint}
           aria-keyshortcuts={ariaShortcuts(key.shortcuts)}
+          onMouseDown={keepFocus}
           onClick={() => onPress(key.event)}
         >
           {key.label}
