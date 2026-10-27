@@ -157,5 +157,6 @@ docs/                    design notes, OpenAPI spec, screenshots
 
 ## AI usage
 
-Built with Claude Code. [PROMPTS.md](PROMPTS.md) describes how it was used and
-summarizes the prompts.
+Built with Claude Code, cross-reviewed with other AI coding assistants —
+Cursor on the architecture and Kimi Code for the final pre-submission audit.
+[PROMPTS.md](PROMPTS.md) records the process and every prompt in full.
